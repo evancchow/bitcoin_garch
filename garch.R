@@ -15,10 +15,8 @@ if (!exists("df.bitfinex")) {
 # Impute w/average between existing previous and next prices, if
 # in either one you find you're missing an hour timestamp
 source("impute_utils.R")
-df.1coin.mini <- impute_average(df.1coin.mini)
-df.bitfinex.mini <- impute_average(df.bitfinex.mini)
-
-stop()
+df.1coin <- impute_average(df.1coin)
+df.bitfinex <- impute_average(df.bitfinex)
 
 # Use only part of each
 df.1coin.mini <- df.1coin[df.1coin$datehr < ymd_hms("2014-10-01 00:00:00"),]
