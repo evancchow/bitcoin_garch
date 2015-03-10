@@ -1,0 +1,2 @@
+RMGARCH tests:
+https://github.com/cran/rmgarch/tree/f484508cc0f2116e35c1814d1c883a05b52fb017/inst/rmgarch.tests

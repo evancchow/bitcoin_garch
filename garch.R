@@ -11,12 +11,16 @@ if (!exists("df.1coin")) { # so don't keep reading in data repeatedly
 if (!exists("df.bitfinex")) {
   df.bitfinex <- import_data('.bitfinexUSD.csv')
 }
+if (!exists("df.lake")) {
+  df.lake <- import_data('.lakeUSD.csv')
+}
 
 # Impute w/average between existing previous and next prices, if
 # in either one you find you're missing an hour timestamp
 source("impute_utils.R")
 df.1coin <- impute_average(df.1coin)
 df.bitfinex <- impute_average(df.bitfinex)
+df.lake <- impute_average(df.lake)
 
 # Use only part of each
 df.1coin.mini <- df.1coin[df.1coin$datehr < ymd_hms("2014-10-01 00:00:00"),]
@@ -26,15 +30,73 @@ df.bitfinex.mini <- df.bitfinex[df.bitfinex$datehr <
                                   ymd_hms("2014-10-01 00:00:00"),]
 df.bitfinex.mini <- df.bitfinex.mini[df.bitfinex.mini$datehr >
                                        ymd_hms("2014-04-01 00:00:00"),]
+df.lake.mini <- df.lake[df.lake$datehr < ymd_hms("2014-10-01 00:00:00"),]
+df.lake.mini <- df.lake.mini[df.lake.mini$datehr >
+                               ymd_hms("2014-04-01 00:00:00"),]
 
 # add hour columns
 df.1coin.mini$hr <- hour(df.1coin.mini$datehr)
 df.1coin.mini <- df.1coin.mini[,c(1,3,2)]
 df.bitfinex.mini$hr <- hour(df.bitfinex.mini$datehr)
 df.bitfinex.mini <- df.bitfinex.mini[,c(1,3,2)]
+df.lake.mini$hr <- hour(df.lake.mini$datehr)
+df.lake.mini <- df.lake.mini[,c(1,3,2)]
+
+# differencing removes the trend which is good. however, you do
+# lose one date at the beginning, so remove that one.
+date.labels <- df.1coin.mini$datehr[2:nrow(df.1coin.mini)]
+diff.1coin <- diff(df.1coin.mini$price)
+diff.bitfinex <- diff(df.bitfinex.mini$price)
+diff.lake <- diff(df.lake.mini$price)
+
+# plot!
+plt.1coin <- qplot(1:length(diff.1coin), diff.1coin, geom="line") +
+  ggtitle("1coin")
+plt.bitfinex <- qplot(1:length(diff.bitfinex), diff.bitfinex,
+                      geom="line") + ggtitle("Bitfinex")
+plt.lake <- qplot(1:length(diff.lake), diff.lake, geom="line") +
+  ggtitle("Lake")
+
+# grid.arrange(plt.1coin, plt.bitfinex, plt.lake)
 
 # Start GARCH analysis
+# Remember you need a first difference to remove the trend (mean) which
+# is similar for all coins, and you may need to use a second difference too.
 require(rmgarch)
+cluster <- NULL
+
+# load example data
+print("Fitting DCC to the example data ...")
+data(dji30retw)
+dat = dji30retw[, 1:3, drop = FALSE]
+uspec = ugarchspec(mean.model = list(armaOrder = c(2,1)), variance.model = list(garchOrder = c(3,1), model = "sGARCH"), 
+                   distribution.model = "norm")
+spec1 = dccspec(uspec = multispec( replicate(3, uspec) ), dccOrder = c(1,1),  distribution = "mvnorm")
+fit1 = dccfit(spec1, data = dat, fit.control = list(eval.se=FALSE))
+print("Done fitting DCC to the example data!")
+
+# Create a similar dataframe (date-indexed) for our bitcoin
+# USD price time series (price differences from interval to interval)
+df.diff <- data.frame(
+  onecoin=diff.1coin,
+  bitfinex=diff.bitfinex,
+  lake=diff.lake
+  )
+row.names(df.diff) <- date.labels
+uspec.btc = ugarchspec(mean.model = list(armaOrder = c(2,1)), variance.model = list(garchOrder = c(3,1), model = "sGARCH"), 
+                   distribution.model = "norm")
+spec.btc = dccspec(uspec = multispec( replicate(3, uspec) ), dccOrder = c(1,1),  distribution = "mvnorm")
+fit.btc <- dccfit(spec.btc, data=df.diff, fit.control=list(eval.se=FALSE))
+# yay this works!
+# now for DCC just figure out how to get the data.
+# useful link w/matlab code:
+# https://sites.google.com/site/garthmortensenthesis/
+
+
+
+
+
+
 
 
 
