@@ -18,19 +18,19 @@ if (!exists("df.lake")) {
 # Impute w/average between existing previous and next prices, if
 # in either one you find you're missing an hour timestamp
 source("impute_utils.R")
-df.1coin <- impute_average(df.1coin)
-df.bitfinex <- impute_average(df.bitfinex)
-df.lake <- impute_average(df.lake)
+df.1coin.imputed <- impute_average(df.1coin)
+df.bitfinex.imputed <- impute_average(df.bitfinex)
+df.lake.imputed <- impute_average(df.lake)
 
 # Use only part of each
-df.1coin.mini <- df.1coin[df.1coin$datehr < ymd_hms("2014-10-01 00:00:00"),]
+df.1coin.mini <- df.1coin.imputed[df.1coin.imputed$datehr < ymd_hms("2014-10-01 00:00:00"),]
 df.1coin.mini <- df.1coin.mini[df.1coin.mini$datehr > 
                                  ymd_hms("2014-04-01 00:00:00"),]
-df.bitfinex.mini <- df.bitfinex[df.bitfinex$datehr <
+df.bitfinex.mini <- df.bitfinex.imputed[df.bitfinex.imputed$datehr <
                                   ymd_hms("2014-10-01 00:00:00"),]
 df.bitfinex.mini <- df.bitfinex.mini[df.bitfinex.mini$datehr >
                                        ymd_hms("2014-04-01 00:00:00"),]
-df.lake.mini <- df.lake[df.lake$datehr < ymd_hms("2014-10-01 00:00:00"),]
+df.lake.mini <- df.lake.imputed[df.lake.imputed$datehr < ymd_hms("2014-10-01 00:00:00"),]
 df.lake.mini <- df.lake.mini[df.lake.mini$datehr >
                                ymd_hms("2014-04-01 00:00:00"),]
 
@@ -49,14 +49,22 @@ diff.1coin <- diff(df.1coin.mini$price)
 diff.bitfinex <- diff(df.bitfinex.mini$price)
 diff.lake <- diff(df.lake.mini$price)
 
-# plot!
-plt.1coin <- qplot(1:length(diff.1coin), diff.1coin, geom="line") +
-  ggtitle("1coin")
-plt.bitfinex <- qplot(1:length(diff.bitfinex), diff.bitfinex,
-                      geom="line") + ggtitle("Bitfinex")
-plt.lake <- qplot(1:length(diff.lake), diff.lake, geom="line") +
-  ggtitle("Lake")
-
+# # plot!
+# plt.1coin.data <- diff.1coin[1:50]
+# plt.bitfinex.data <- diff.bitfinex[1:50]
+# plt.lake.data <- diff.lake[1:50]
+# 
+# plt.1coin <- qplot(1:length(plt.1coin.data), plt.1coin.data, geom="line") +
+#   ggtitle("1coin") +
+#   ylab("Bitcoin price in USD")
+# plt.bitfinex <- qplot(1:length(plt.bitfinex.data), plt.bitfinex.data,
+#                       geom="line") + 
+#   ggtitle("Bitfinex") +
+#   ylab("Bitcoin price in USD")
+# plt.lake <- qplot(1:length(plt.lake.data), plt.lake.data, geom="line") +
+#   ggtitle("Lake") +
+#   ylab("Bitcoin price in USD")
+# 
 # grid.arrange(plt.1coin, plt.bitfinex, plt.lake)
 
 # Start GARCH analysis
@@ -83,10 +91,13 @@ df.diff <- data.frame(
   lake=diff.lake
   )
 row.names(df.diff) <- date.labels
+
+print("Fitting DCC to bitcoin data ...")
 uspec.btc = ugarchspec(mean.model = list(armaOrder = c(2,1)), variance.model = list(garchOrder = c(3,1), model = "sGARCH"), 
                    distribution.model = "norm")
 spec.btc = dccspec(uspec = multispec( replicate(3, uspec) ), dccOrder = c(1,1),  distribution = "mvnorm")
 fit.btc <- dccfit(spec.btc, data=df.diff, fit.control=list(eval.se=FALSE))
+print("Done fitting DCC to bitcoin data!")
 # yay this works!
 # now for DCC just figure out how to get the data.
 # useful link w/matlab code:
